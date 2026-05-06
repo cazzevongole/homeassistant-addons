@@ -32,6 +32,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const isMobile = mounted ? isMobileRaw : false;
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+  const activeHref = mounted ? pathname : '';
 
   useEffect(() => {
     setMounted(true);
@@ -52,14 +53,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <ListItemButton
                 component={Link}
                 href={item.href}
-                selected={pathname === item.href}
+                selected={activeHref === item.href}
                 onClick={() => isMobile && setMobileOpen(false)}
                 sx={{
                   '&.Mui-selected': { bgcolor: 'rgba(124, 77, 255, 0.15)' },
                   '&:hover': { bgcolor: 'rgba(124, 77, 255, 0.08)' },
                 }}
               >
-                <ListItemIcon sx={{ color: pathname === item.href ? '#7c4dff' : '#aaa' }}>
+                <ListItemIcon sx={{ color: activeHref === item.href ? '#7c4dff' : '#aaa' }}>
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText primary={item.label} />
