@@ -1,0 +1,1 @@
+ALTER TABLE `tasks` ADD `notified` integer DEFAULT false NOT NULL;
