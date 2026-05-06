@@ -1,0 +1,2 @@
+build_args:
+  BUILD_FROM: ghcr.io/home-assistant/aarch64-base-nodejs:22
