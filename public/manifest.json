@@ -1,0 +1,54 @@
+{
+  "name": "ADHD Helper",
+  "short_name": "ADHD Helper",
+  "description": "Personal productivity tool for ADHD-friendly task management, focus sessions, and habit tracking",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay"],
+  "background_color": "#121212",
+  "theme_color": "#7c4dff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "ADHD Helper desktop view"
+    },
+    {
+      "src": "/screenshots/mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "ADHD Helper mobile view"
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+adhdhelper",
+      "url": "/?task=%s"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Chip, Snackbar, Alert } from '@mui/material';
 import { Notifications, NotificationsOff } from '@mui/icons-material';
 
@@ -8,58 +8,44 @@ export function NotificationBell() {
   const [enabled, setEnabled] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [snack, setSnack] = useState('');
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setMounted(true);
-    if (!('Notification' in window)) return;
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
 
-    if (Notification.permission === 'granted') {
-      setEnabled(true);
-      startPolling();
-    }
-  }, []);
+    navigator.serviceWorker.getRegistration().then(reg => {
+      if (reg && Notification.permission === 'granted') {
+        setEnabled(true);
+      }
+    });
 
-  const startPolling = useCallback(() => {
-    checkNow();
-    intervalRef.current = setInterval(checkNow, 60000);
-  }, []);
-
-  const checkNow = useCallback(() => {
-    fetch('/api/reminders/check')
-      .then(res => res.json())
-      .then(tasks => {
-        for (const task of tasks) {
-          if (Notification.permission === 'granted') {
-            new Notification('ADHD Helper - Task Reminder', {
-              body: task.title,
-              icon: '/favicon.ico',
-              tag: `task-${task.id}`,
-            });
-          }
-          setSnack(`Reminder: ${task.title}`);
-        }
-      })
-      .catch(() => {});
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'REMINDER') {
+        setSnack(`Reminder: ${event.data.title}`);
+      }
+    });
   }, []);
 
   const toggle = async () => {
-    if (!('Notification' in window)) return;
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
 
     if (enabled) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.unregister();
+      }
       setEnabled(false);
       return;
     }
 
     const perm = await Notification.requestPermission();
     if (perm === 'granted') {
+      await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       setEnabled(true);
-      startPolling();
     }
   };
 
-  if (!mounted || !('Notification' in window)) return null;
+  if (!mounted || !('serviceWorker' in navigator) || !('Notification' in window)) return null;
 
   return (
     <>

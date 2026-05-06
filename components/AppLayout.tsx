@@ -13,6 +13,7 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NotificationBell } from '@/components/NotificationBell';
+import { PWARegister } from '@/components/PWARegister';
 
 const DRAWER_WIDTH = 240;
 
@@ -97,6 +98,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, sm: 3 }, mt: { xs: 7, sm: 0 } }}>
         {children}
       </Box>
+      <PWARegister />
     </Box>
   );
 }
