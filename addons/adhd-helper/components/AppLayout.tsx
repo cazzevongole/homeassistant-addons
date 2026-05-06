@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText,
   Toolbar, AppBar, Typography, useMediaQuery, useTheme, IconButton, Divider,
@@ -27,9 +27,15 @@ const navItems = [
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobileRaw = useMediaQuery(theme.breakpoints.down('sm'));
+  const [mounted, setMounted] = useState(false);
+  const isMobile = mounted ? isMobileRaw : false;
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const drawer = (
     <Box sx={{ height: '100%', bgcolor: '#1a1a1a', display: 'flex', flexDirection: 'column' }}>
@@ -102,3 +108,4 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </Box>
   );
 }
+1
