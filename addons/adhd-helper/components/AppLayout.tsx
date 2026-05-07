@@ -18,7 +18,7 @@ import { PWARegister } from '@/components/PWARegister';
 const DRAWER_WIDTH = 240;
 
 const navItems = [
-  { label: 'Tasks', href: '/tasks', icon: <TaskIcon /> },
+  { label: 'Tasks', href: '/', icon: <TaskIcon /> },
   { label: 'Focus Timer', href: '/focus', icon: <TimerIcon /> },
   { label: 'Daily Planner', href: '/planner', icon: <CalendarIcon /> },
   { label: 'Habits', href: '/habits', icon: <HabitIcon /> },
