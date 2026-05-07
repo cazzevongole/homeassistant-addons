@@ -22,7 +22,7 @@ const timeSlots = Array.from({ length: 16 }, (_, i) => {
   return `${hour.toString().padStart(2, '0')}:00`;
 });
 
-export default function PlannerPage() {
+export function PlannerPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [items, setItems] = useState<PlannerItem[]>([]);
   const [open, setOpen] = useState(false);

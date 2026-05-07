@@ -18,7 +18,7 @@ const getLast7Days = () => {
   });
 };
 
-export default function HabitsPage() {
+export function HabitsPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [logs, setLogs] = useState<HabitLog[]>([]);
   const [open, setOpen] = useState(false);

@@ -10,19 +10,18 @@ import {
   CalendarToday as CalendarIcon, CheckCircle as HabitIcon,
   Notes as NotesIcon,
 } from '@mui/icons-material';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { NotificationBell } from '@/components/NotificationBell';
 import { PWARegister } from '@/components/PWARegister';
+import { useEffect, useState } from 'react';
 
 const DRAWER_WIDTH = 240;
 
 const navItems = [
-  { label: 'Tasks', href: '/', icon: <TaskIcon /> },
-  { label: 'Focus Timer', href: '/focus', icon: <TimerIcon /> },
-  { label: 'Daily Planner', href: '/planner', icon: <CalendarIcon /> },
-  { label: 'Habits', href: '/habits', icon: <HabitIcon /> },
-  { label: 'Brain Dump', href: '/notes', icon: <NotesIcon /> },
+  { label: 'Tasks', hash: '#tasks', icon: <TaskIcon /> },
+  { label: 'Focus Timer', hash: '#focus', icon: <TimerIcon /> },
+  { label: 'Daily Planner', hash: '#planner', icon: <CalendarIcon /> },
+  { label: 'Habits', hash: '#habits', icon: <HabitIcon /> },
+  { label: 'Brain Dump', hash: '#notes', icon: <NotesIcon /> },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -31,11 +30,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   const isMobile = mounted ? isMobileRaw : false;
   const [mobileOpen, setMobileOpen] = useState(false);
-  const pathname = usePathname();
-  const activeHref = mounted ? pathname : '';
+  const [activeHash, setActiveHash] = useState('');
 
   useEffect(() => {
     setMounted(true);
+    setActiveHash(window.location.hash || '#tasks');
+    const handler = () => setActiveHash(window.location.hash || '#tasks');
+    window.addEventListener('hashchange', handler);
+    return () => window.removeEventListener('hashchange', handler);
   }, []);
 
   const drawer = (
@@ -51,16 +53,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {navItems.map((item) => (
             <ListItem key={item.href} disablePadding>
               <ListItemButton
-                component={Link}
-                href={item.href}
-                selected={activeHref === item.href}
+                component="a"
+                href={item.hash}
+                selected={activeHash === item.hash}
                 onClick={() => isMobile && setMobileOpen(false)}
                 sx={{
                   '&.Mui-selected': { bgcolor: 'rgba(124, 77, 255, 0.15)' },
                   '&:hover': { bgcolor: 'rgba(124, 77, 255, 0.08)' },
                 }}
               >
-                <ListItemIcon sx={{ color: activeHref === item.href ? '#7c4dff' : '#aaa' }}>
+                <ListItemIcon sx={{ color: activeHash === item.hash ? '#7c4dff' : '#aaa' }}>
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText primary={item.label} />

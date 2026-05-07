@@ -16,7 +16,7 @@ type Note = {
   updatedAt: string;
 };
 
-export default function NotesPage() {
+export function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Note | null>(null);

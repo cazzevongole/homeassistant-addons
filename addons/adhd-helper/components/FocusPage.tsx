@@ -16,7 +16,7 @@ const MODES = {
 
 type Mode = keyof typeof MODES;
 
-export default function FocusPage() {
+export function FocusPage() {
   const [mode, setMode] = useState<Mode>('focus');
   const [duration, setDuration] = useState(MODES.focus.default);
   const [timeLeft, setTimeLeft] = useState(duration * 60);
