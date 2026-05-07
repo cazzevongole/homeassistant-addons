@@ -12,7 +12,6 @@ import {
 } from '@mui/icons-material';
 import { NotificationBell } from '@/components/NotificationBell';
 import { PWARegister } from '@/components/PWARegister';
-import { useEffect, useState } from 'react';
 
 const DRAWER_WIDTH = 240;
 
@@ -51,7 +50,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <Divider sx={{ bgcolor: '#333' }} />
         <List>
           {navItems.map((item) => (
-            <ListItem key={item.href} disablePadding>
+            <ListItem key={item.hash} disablePadding>
               <ListItemButton
                 component="a"
                 href={item.hash}
@@ -78,7 +77,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh' }} suppressHydrationWarning>
       <AppBar position="fixed" sx={{ display: { sm: 'none' }, bgcolor: '#1a1a1a', boxShadow: 'none' }}>
         <Toolbar>
           <IconButton onClick={() => setMobileOpen(true)} sx={{ mr: 2, color: '#fff' }}>
@@ -111,4 +110,3 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </Box>
   );
 }
-1
