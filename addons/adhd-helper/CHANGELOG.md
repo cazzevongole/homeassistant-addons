@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.2
+- Fix hydration mismatch warning on AppLayout root Box
+
 ## 1.2.1
 - Fix hash-based routing to prevent 404s in HAOS ingress
 - Move all pages to client-side components (no server routes)
