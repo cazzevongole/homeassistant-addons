@@ -60,5 +60,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|icons|screenshots|manifest.json|sw.js|favicon.ico).*)'],
+  // /api/push/send è l'endpoint cron (GitHub Actions): si protegge da sé via
+  // Bearer CRON_SECRET nel route handler, non deve passare dalla guardia cookie.
+  matcher: ['/((?!_next/static|_next/image|icons|screenshots|manifest.json|sw.js|favicon.ico|api/push/send).*)'],
 };

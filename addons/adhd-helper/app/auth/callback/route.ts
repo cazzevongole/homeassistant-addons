@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
   const next = returnTo.startsWith('/') ? returnTo : '/';
 
   if (code) {
+    let response = NextResponse.redirect(`${origin}${next}`);
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -17,10 +18,13 @@ export async function GET(request: NextRequest) {
             return request.cookies.getAll();
           },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
+            cookiesToSet.forEach(({ name, value }) =>
               request.cookies.set(name, value),
             );
-            const response = NextResponse.next({ request });
+            // Reuse the SAME response we redirect with, otherwise the session
+            // cookies are set on a throwaway response and the redirect lands
+            // on a protected route with no session -> bounced back to /auth.
+            response = NextResponse.redirect(`${origin}${next}`);
             cookiesToSet.forEach(({ name, value, options }) =>
               response.cookies.set(name, value, options),
             );
@@ -31,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return response;
     }
   }
 

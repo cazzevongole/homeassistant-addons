@@ -40,8 +40,11 @@ export async function syncNow(userId: string): Promise<SyncResult> {
         const { error } = await supabase.from(remote).delete().eq('id', op.row.id as string);
         if (error) throw error;
       } else {
+        // Send all row fields as-is (user_id included). The schema sets
+        // `user_id uuid default auth.uid()` and RLS binds every row to the
+        // caller's uid with check, so forged/missing user_id cannot escape
+        // the user's own rows. Strip nothing — see supabase migrations.
         const payload = { ...op.row };
-        delete payload.user_id;
         if (op.op === 'insert') {
           const { error } = await supabase.from(remote).insert(payload);
           if (error) throw error;
