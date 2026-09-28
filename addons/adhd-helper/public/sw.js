@@ -41,17 +41,30 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || '/';
+  // URL assoluto same-origin: /tasks per i task, /planner per i blocchi agenda
+  const target = new URL(event.notification.data?.url || '/', self.location.origin).href;
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    (async () => {
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      // 1) una finestra già sulla sezione giusta: solo focus
+      for (const client of clientList) {
+        if (client.url === target && 'focus' in client) return client.focus();
+      }
+      // 2) una finestra qualsiasi dell'app: focus + navigazione interna alla sezione
       for (const client of clientList) {
         if ('focus' in client) {
-          client.navigate(url);
-          return client.focus();
+          try {
+            await client.focus();
+            await client.navigate(target);
+          } catch {
+            /* some clients refuse navigate; the SPA root still shows the app */
+          }
+          return client;
         }
       }
-      return self.clients.openWindow(url);
-    }),
+      // 3) nessuna finestra: apri nuova sulla sezione
+      return self.clients.openWindow(target);
+    })(),
   );
 });
 
