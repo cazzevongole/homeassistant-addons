@@ -1,46 +1,46 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
+import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { StoreProvider } from '@/lib/store';
 import { AppLayout } from '@/components/AppLayout';
+import { XpToast } from '@/components/XpToast';
+import { SyncStatus } from '@/components/SyncStatus';
+import { PwaManager } from '@/components/PwaManager';
+import { ReminderChecker } from '@/components/ReminderChecker';
 
-const inter = Inter({
-  variable: '--font-inter',
-  subsets: ['latin'],
-});
+const inter = Inter({ variable: '--font-inter', subsets: ['latin'] });
 
 export const viewport: Viewport = {
   themeColor: '#7c4dff',
   width: 'device-width',
   initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export const metadata: Metadata = {
   title: 'ADHD Helper',
-  description: 'Personal productivity tool for ADHD-friendly task management, focus sessions, and habit tracking',
+  description:
+    'Produttività ADHD-friendly: task, focus timer, planner, abitudini e brain dump. Offline-first con sincronizzazione.',
   manifest: '/manifest.json',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'ADHD Helper',
-  },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'ADHD Helper' },
+  icons: { icon: '/icons/icon-192.png', apple: '/icons/icon-192.png' },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={inter.variable}>
-      <head>
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-      </head>
+    <html lang="it" className={inter.variable}>
       <body style={{ margin: 0 }}>
         <ThemeProvider>
-          <AppLayout>{children}</AppLayout>
+          <StoreProvider>
+            <AppLayout>
+              {children}
+            </AppLayout>
+            <XpToast />
+            <SyncStatus />
+            <PwaManager />
+            <ReminderChecker />
+          </StoreProvider>
         </ThemeProvider>
       </body>
     </html>

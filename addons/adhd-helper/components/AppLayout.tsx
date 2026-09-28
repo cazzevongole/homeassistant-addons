@@ -1,112 +1,179 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText,
-  Toolbar, AppBar, Typography, useMediaQuery, useTheme, IconButton, Divider,
+  Toolbar, AppBar, Typography, IconButton, Divider, BottomNavigation,
+  BottomNavigationAction, Avatar, Menu, MenuItem, ListItemAvatar,
 } from '@mui/material';
 import {
-  Menu as MenuIcon, Task as TaskIcon, Timer as TimerIcon,
-  CalendarToday as CalendarIcon, CheckCircle as HabitIcon,
-  Notes as NotesIcon,
+  Today as TodayIcon, Task as TaskIcon, Timer as TimerIcon,
+  CalendarMonth as CalendarIcon, EventRepeat as HabitIcon,
+  StickyNote2 as NotesIcon, MilitaryTech as TrophyIcon,
+  Menu as MenuIcon, Logout as LogoutIcon,
 } from '@mui/icons-material';
-import { NotificationBell } from '@/components/NotificationBell';
-import { PWARegister } from '@/components/PWARegister';
+import { useStore } from '@/lib/store';
 
-const DRAWER_WIDTH = 240;
+const DRAWER_WIDTH = 250;
 
-const navItems = [
-  { label: 'Tasks', hash: '#tasks', icon: <TaskIcon /> },
-  { label: 'Focus Timer', hash: '#focus', icon: <TimerIcon /> },
-  { label: 'Daily Planner', hash: '#planner', icon: <CalendarIcon /> },
-  { label: 'Habits', hash: '#habits', icon: <HabitIcon /> },
-  { label: 'Brain Dump', hash: '#notes', icon: <NotesIcon /> },
+const NAV = [
+  { label: 'Oggi', href: '/', icon: <TodayIcon /> },
+  { label: 'Task', href: '/tasks', icon: <TaskIcon /> },
+  { label: 'Focus', href: '/focus', icon: <TimerIcon /> },
+  { label: 'Planner', href: '/planner', icon: <CalendarIcon /> },
+  { label: 'Abitudini', href: '/habits', icon: <HabitIcon /> },
+  { label: 'Note', href: '/notes', icon: <NotesIcon /> },
+  { label: 'Progressi', href: '/progressi', icon: <TrophyIcon /> },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const theme = useTheme();
-  const isMobileRaw = useMediaQuery(theme.breakpoints.down('sm'));
-  const [mounted, setMounted] = useState(false);
-  const isMobile = mounted ? isMobileRaw : false;
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [activeHash, setActiveHash] = useState('');
+  const pathname = usePathname();
+  const router = useRouter();
+  const { session, profile, signOut } = useStore();
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
 
-  useEffect(() => {
-    setMounted(true);
-    setActiveHash(window.location.hash || '#tasks');
-    const handler = () => setActiveHash(window.location.hash || '#tasks');
-    window.addEventListener('hashchange', handler);
-    return () => window.removeEventListener('hashchange', handler);
-  }, []);
+  const activeIdx = NAV.findIndex((n) =>
+    n.href === '/' ? pathname === '/' : pathname.startsWith(n.href),
+  );
 
-  const drawer = (
-    <Box sx={{ height: '100%', bgcolor: '#1a1a1a', display: 'flex', flexDirection: 'column' }}>
-      <Box>
-        <Toolbar>
-          <Typography variant="h6" sx={{ color: '#7c4dff', fontWeight: 700 }}>
-            ADHD Helper
-          </Typography>
-        </Toolbar>
-        <Divider sx={{ bgcolor: '#333' }} />
-        <List>
-          {navItems.map((item) => (
-            <ListItem key={item.hash} disablePadding>
-              <ListItemButton
-                component="a"
-                href={item.hash}
-                selected={activeHash === item.hash}
-                onClick={() => isMobile && setMobileOpen(false)}
-                sx={{
-                  '&.Mui-selected': { bgcolor: 'rgba(124, 77, 255, 0.15)' },
-                  '&:hover': { bgcolor: 'rgba(124, 77, 255, 0.08)' },
-                }}
-              >
-                <ListItemIcon sx={{ color: activeHash === item.hash ? '#7c4dff' : '#aaa' }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText primary={item.label} />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-      </Box>
-      <Box sx={{ p: 2, mt: 'auto' }}>
-        <NotificationBell />
-      </Box>
+  const initials = (profile?.display_name || profile?.email || 'U')
+    .split(/[\s@.]/)[0]
+    .slice(0, 2)
+    .toUpperCase();
+
+  const userMenu = (
+    <>
+      <ListItemAvatar>
+        <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36, fontSize: 14 }}>
+          {initials}
+        </Avatar>
+      </ListItemAvatar>
+      <ListItemText
+        primary={profile?.display_name || profile?.email || 'Utente'}
+        secondary={profile ? `Lv. ${profile.level} · ${profile.xp} XP · 🔥 ${profile.streak_days}` : '…'}
+      />
+    </>
+  );
+
+  const drawerContent = (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#161616' }}>
+      <Toolbar>
+        <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 700 }}>
+          ADHD Helper
+        </Typography>
+      </Toolbar>
+      <Divider />
+      <List sx={{ flexGrow: 1 }}>
+        {NAV.map((item) => (
+          <ListItem key={item.href} disablePadding>
+            <ListItemButton
+              component={Link}
+              href={item.href}
+              selected={activeIdx >= 0 && NAV[activeIdx]?.href === item.href}
+              sx={{ '&.Mui-selected': { bgcolor: 'rgba(124, 77, 255, 0.16)' } }}
+            >
+              <ListItemIcon sx={{ color: activeIdx >= 0 && NAV[activeIdx]?.href === item.href ? 'primary.main' : 'text.secondary' }}>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+      <Divider />
+      <ListItem>
+        {userMenu}
+        <IconButton
+          size="small"
+          onClick={(e) => setMenuAnchor(e.currentTarget)}
+          aria-label="Menu account"
+        >
+          <LogoutIcon fontSize="small" />
+        </IconButton>
+      </ListItem>
     </Box>
   );
 
+  if (!session) {
+    return <Box sx={{ minHeight: '100vh' }}>{children}</Box>;
+  }
+
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }} suppressHydrationWarning>
-      <AppBar position="fixed" sx={{ display: { sm: 'none' }, bgcolor: '#1a1a1a', boxShadow: 'none' }}>
+    <Box sx={{ display: 'flex', minHeight: '100dvh' }}>
+      {/* Desktop sidebar */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          width: DRAWER_WIDTH,
+          flexShrink: 0,
+          display: { xs: 'none', sm: 'block' },
+          '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box' },
+        }}
+        open
+      >
+        {drawerContent}
+      </Drawer>
+
+      {/* Mobile app bar */}
+      <AppBar position="fixed" sx={{ display: { sm: 'none' }, bgcolor: '#161616', boxShadow: 'none' }}>
         <Toolbar>
-          <IconButton onClick={() => setMobileOpen(true)} sx={{ mr: 2, color: '#fff' }}>
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" sx={{ color: '#7c4dff', fontWeight: 700, flexGrow: 1 }}>
+          <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 700, flexGrow: 1 }}>
             ADHD Helper
           </Typography>
-          <NotificationBell />
+          <IconButton onClick={(e) => setMenuAnchor(e.currentTarget)} aria-label="Menu account">
+            <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, fontSize: 13 }}>
+              {initials}
+            </Avatar>
+          </IconButton>
         </Toolbar>
       </AppBar>
 
-      <Drawer
-        variant={isMobile ? 'temporary' : 'permanent'}
-        open={isMobile ? mobileOpen : true}
-        onClose={() => setMobileOpen(false)}
+      {/* Mobile bottom navigation */}
+      <BottomNavigation
+        value={Math.max(0, activeIdx)}
         sx={{
-          width: isMobile ? 0 : DRAWER_WIDTH,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box' },
+          display: { xs: 'flex', sm: 'none' },
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          bgcolor: '#161616',
+          borderTop: '1px solid #2a2a2a',
+          zIndex: 1200,
         }}
+        showLabels
       >
-        {drawer}
-      </Drawer>
+        {NAV.slice(0, 5).map((item) => (
+          <BottomNavigationAction
+            key={item.href}
+            component={Link}
+            href={item.href}
+            label={item.label}
+            icon={item.icon}
+          />
+        ))}
+      </BottomNavigation>
 
-      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, sm: 3 }, mt: { xs: 7, sm: 0 } }}>
+      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, sm: 3 }, pb: { xs: 10, sm: 3 }, minWidth: 0 }}>
         {children}
       </Box>
-      <PWARegister />
+
+      <Menu
+        anchorEl={menuAnchor}
+        open={!!menuAnchor}
+        onClose={() => setMenuAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <MenuItem disabled>
+          {profile?.email}
+        </MenuItem>
+        <MenuItem onClick={() => { setMenuAnchor(null); signOut().then(() => router.push('/auth')); }}>
+          <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon>
+          Esci
+        </MenuItem>
+      </Menu>
     </Box>
   );
 }
