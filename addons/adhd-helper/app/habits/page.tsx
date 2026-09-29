@@ -8,14 +8,14 @@ import {
 import { Add, Delete, Check, Close } from '@mui/icons-material';
 import { useHabits } from '@/lib/store';
 import { useStore } from '@/lib/store';
-import { todayLocal, lastNDays, addDays, dayLabel } from '@/lib/date';
+import { useToday, lastNDays, addDays, dayLabel } from '@/lib/date';
 import { SyncStatus } from '@/components/SyncStatus';
 
 const DAYS_SHOWN = 14;
 
-function streakOf(logs: { habit_id: string; date: string }[], habitId: string): number {
+function streakOf(logs: { habit_id: string; date: string }[], habitId: string, today: string): number {
   let streak = 0;
-  let cursor = todayLocal();
+  let cursor = today;
   // Allow today not being checked yet without breaking the streak
   const doneToday = logs.some((l) => l.habit_id === habitId && l.date === cursor);
   if (!doneToday) cursor = addDays(cursor, -1);
@@ -33,7 +33,8 @@ export default function HabitsPage() {
   const { online } = useStore();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
-  const days = lastNDays(DAYS_SHOWN);
+  const today = useToday();
+  const days = today === null ? [] : lastNDays(DAYS_SHOWN, new Date(`${today}T12:00:00`));
 
   const handleSubmit = async () => {
     if (!form.name.trim()) return;
@@ -60,8 +61,8 @@ export default function HabitsPage() {
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {habits.map((habit) => {
-          const streak = streakOf(logs, habit.id);
-          const doneToday = logs.some((l) => l.habit_id === habit.id && l.date === todayLocal());
+          const streak = today !== null ? streakOf(logs, habit.id, today) : 0;
+          const doneToday = today !== null && logs.some((l) => l.habit_id === habit.id && l.date === today);
           return (
             <Paper key={habit.id} sx={{ p: 2 }}>
               <Box sx={{
@@ -78,7 +79,7 @@ export default function HabitsPage() {
                   <Tooltip title={doneToday ? 'Fatto oggi!' : 'Segna oggi'}>
                     <Chip
                       label={doneToday ? 'Oggi ✔' : 'Oggi'}
-                      onClick={() => toggleLog(habit.id, todayLocal())}
+                      onClick={() => today && toggleLog(habit.id, today)}
                       color={doneToday ? 'success' : 'default'}
                       variant={doneToday ? 'filled' : 'outlined'}
                       sx={{ cursor: 'pointer', fontWeight: 600 }}

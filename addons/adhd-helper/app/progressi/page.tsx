@@ -8,7 +8,7 @@ import {
 } from '@mui/icons-material';
 import { useStore, useTasks, useFocusSessions, useHabits, usePlanner } from '@/lib/store';
 import { levelProgress, XP_RULES } from '@/lib/types';
-import { todayLocal, lastNDays } from '@/lib/date';
+import { useToday, lastNDays } from '@/lib/date';
 import { SyncStatus } from '@/components/SyncStatus';
 
 export default function ProgressiPage() {
@@ -19,8 +19,8 @@ export default function ProgressiPage() {
   const { items } = usePlanner();
 
   const progress = levelProgress(profile?.xp ?? 0);
-  const last7 = lastNDays(7);
-  const today = todayLocal();
+  const today = useToday();
+  const last7 = today === null ? [] : lastNDays(7, new Date(`${today}T12:00:00`));
 
   const tasksDone7 = tasks.filter((t) => t.completed && t.completed_at && last7.includes(t.completed_at.slice(0, 10))).length;
   const focusMin7 = sessions

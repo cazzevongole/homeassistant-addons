@@ -5,7 +5,8 @@ import {
 } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type {
-  EntityKind, FocusSession, Habit, HabitLog, Note, PendingOp, PlannerItem, Profile, SyncOp, Task,
+  EntityKind, FocusSession, GoogleState, GoogleSyncSummary, Habit, HabitLog, Note, PendingOp,
+  PlannerItem, Profile, SyncOp, Task,
 } from './types';
 import { levelForXp } from './types';
 import {
@@ -26,11 +27,30 @@ interface StoreState {
   profile: Profile | null;
   xpToast: { amount: number; key: number } | null;
   levelUp: number | null;
+  google: GoogleState;
   refresh: () => Promise<void>;
   sync: () => Promise<void>;
   signOut: () => Promise<void>;
   mutate: (table: EntityKind, op: SyncOp, row: Record<string, unknown>) => Promise<void>;
+  syncGoogle: (force?: boolean) => Promise<GoogleSyncSummary | null>;
+  refreshGoogle: () => Promise<void>;
+  connectGoogle: () => void;
+  disconnectGoogle: () => Promise<void>;
 }
+
+/** Frequenza massima di una passata verso Google (il piano cambia ogni tanto). */
+const GOOGLE_MIN_INTERVAL_MS = 60_000;
+
+const EMPTY_GOOGLE: GoogleState = {
+  configured: false,
+  connected: false,
+  email: null,
+  calendarId: 'primary',
+  lastSyncAt: null,
+  lastError: null,
+  syncing: false,
+  summary: null,
+};
 
 const StoreContext = createContext<StoreState | null>(null);
 
@@ -50,8 +70,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [xpToast, setXpToast] = useState<{ amount: number; key: number } | null>(null);
   const [levelUp, setLevelUp] = useState<number | null>(null);
+  const [google, setGoogle] = useState<GoogleState>(EMPTY_GOOGLE);
   const lastProfileXp = useRef<number | null>(null);
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncingRef = useRef(false);
+  const googleConnected = useRef(false);
+  const googleBusy = useRef(false);
+  const lastGoogleRun = useRef(0);
 
   // ---- load cached data on mount (instant paint, offline-friendly) ----
   useEffect(() => {
@@ -87,8 +112,70 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const sync = useCallback(async () => {
-    if (!session?.user || syncing) return;
+  // ---- Google Calendar / Tasks ----
+  const loadGoogleStatus = useCallback(async () => {
+    if (!session?.user) {
+      setGoogle(EMPTY_GOOGLE);
+      googleConnected.current = false;
+      return;
+    }
+    try {
+      const res = await fetch('/api/google/status');
+      if (!res.ok) return;
+      const info = (await res.json()) as GoogleState;
+      setGoogle((g) => ({ ...g, ...info, syncing: false }));
+      googleConnected.current = Boolean(info.connected);
+    } catch {
+      // offline: lo stato resta com'era, la sync Google ripartirà dopo.
+    }
+  }, [session?.user?.id]);
+
+  /**
+   * Push verso Google (task → Google Tasks, abitudini → task ricorrenti,
+   * planner → Calendar) + pull delle sole completature.
+   */
+  const syncGoogle = useCallback(
+    async (force = false): Promise<GoogleSyncSummary | null> => {
+      if (!session?.user || googleBusy.current) return null;
+      if (!force && Date.now() - lastGoogleRun.current < GOOGLE_MIN_INTERVAL_MS) return null;
+      googleBusy.current = true;
+      lastGoogleRun.current = Date.now();
+      setGoogle((g) => ({ ...g, syncing: true }));
+      try {
+        const res = await fetch('/api/google/sync', { method: 'POST' });
+        const summary = (await res.json()) as GoogleSyncSummary;
+        setGoogle((g) => ({
+          ...g,
+          syncing: false,
+          connected: summary.connected !== false,
+          lastError: summary.error ?? null,
+          lastSyncAt: summary.ok ? new Date().toISOString() : g.lastSyncAt,
+          summary,
+        }));
+        return summary;
+      } catch {
+        setGoogle((g) => ({ ...g, syncing: false }));
+        return null;
+      } finally {
+        googleBusy.current = false;
+      }
+    },
+    [session?.user?.id],
+  );
+
+  const connectGoogle = useCallback(() => {
+    window.location.assign('/api/google/connect');
+  }, []);
+
+  const disconnectGoogle = useCallback(async () => {
+    await fetch('/api/google/status', { method: 'DELETE' });
+    googleConnected.current = false;
+    setGoogle({ ...EMPTY_GOOGLE, configured: true });
+  }, []);
+
+  const syncLocal = useCallback(async () => {
+    if (!session?.user || syncingRef.current) return;
+    syncingRef.current = true;
     setSyncing(true);
     const res = await syncNow(session.user.id);
     if (res.ok) {
@@ -97,13 +184,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setPendingCount((await getPendingOps()).length);
       setLastSync(new Date().toISOString());
     }
+    syncingRef.current = false;
     setSyncing(false);
-  }, [session, syncing]);
+  }, [session?.user?.id]);
+
+  // Dopo il sync locale, se l'utente ha collegato Google si prova a esportare
+  // quello che è appena cambiato (throttled, in silenzio se non connesso).
+  const sync = useCallback(async () => {
+    await syncLocal();
+    if (!googleConnected.current || !navigator.onLine) return;
+    const summary = await syncGoogle();
+    // Le completature arrivate da Google stanno già in Postgres: un secondo
+    // passaggio locale le porta in IndexedDB. Nessun loop: qui si chiama syncLocal.
+    if (summary?.ok && summary.tasksCompleted > 0) await syncLocal();
+  }, [syncLocal, syncGoogle]);
 
   // ---- initial sync after login ----
   useEffect(() => {
     if (!session?.user) return;
     const t = setTimeout(() => {
+      loadGoogleStatus();
       sync();
     }, 0);
     getPendingOps().then((ops) => setPendingCount(ops.length));
@@ -179,6 +279,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     syncTimer.current = setTimeout(() => { sync(); }, 2500);
   }, [sync]);
 
+  // ---- flush pending mutations on hide/close (don't lose ops queued <2.5s before exit) ----
+  useEffect(() => {
+    const flush = () => {
+      if (!session?.user || !navigator.onLine) return;
+      if (syncTimer.current) {
+        clearTimeout(syncTimer.current);
+        syncTimer.current = null;
+      }
+      // Best effort: fire the sync now; fires on tab hide/app background/close.
+      // Most browsers keep the page alive a few seconds on hide — enough for the push.
+      getPendingOps().then((ops) => {
+        if (ops.length > 0) sync();
+      });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [session?.user?.id, sync]);
+
   const mutate = useCallback(
     async (table: EntityKind, op: SyncOp, row: Record<string, unknown>) => {
       // 1. optimistic local update
@@ -222,9 +347,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<StoreState>(
     () => ({
       session, loading, online, syncing, lastSync, pendingCount,
-      data, profile, xpToast, levelUp, refresh, sync, signOut, mutate,
+      data, profile, xpToast, levelUp,      google, refresh, sync, signOut, mutate,
+      syncGoogle, refreshGoogle: loadGoogleStatus, connectGoogle, disconnectGoogle,
     }),
-    [session, loading, online, syncing, lastSync, pendingCount, data, profile, xpToast, levelUp, refresh, sync, signOut, mutate],
+    [session, loading, online, syncing, lastSync, pendingCount, data, profile, xpToast, levelUp,
+      google, refresh, sync, signOut, mutate, syncGoogle, loadGoogleStatus, connectGoogle, disconnectGoogle],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -258,6 +385,9 @@ export function useTasks() {
         notified: t.notified ?? false,
         created_at: existing?.created_at ?? new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        // il legame con Google va conservato, altrimenti la riga viene riesportata
+        google_task_id: existing?.google_task_id ?? null,
+        google_task_synced_at: existing?.google_task_synced_at ?? null,
       };
       return mutate('tasks', existing ? 'update' : 'insert', row as unknown as Record<string, unknown>);
     },
@@ -288,6 +418,8 @@ export function usePlanner() {
         task_id: t.task_id ?? null,
         created_at: existing?.created_at ?? new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        google_event_id: existing?.google_event_id ?? null,
+        google_event_synced_at: existing?.google_event_synced_at ?? null,
       };
       return mutate('planner', existing ? 'update' : 'insert', row as unknown as Record<string, unknown>);
     },
@@ -309,6 +441,9 @@ export function useHabits() {
         color: t.color ?? '#7c4dff', archived: false,
         created_at: existing?.created_at ?? new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        google_task_id: existing?.google_task_id ?? null,
+        google_recurrence: existing?.google_recurrence ?? 'RRULE:FREQ=DAILY',
+        google_task_synced_at: existing?.google_task_synced_at ?? null,
       };
       return mutate('habits', existing ? 'update' : 'insert', row as unknown as Record<string, unknown>);
     },

@@ -8,7 +8,8 @@ import {
 import { Add, Delete, Edit } from '@mui/icons-material';
 import { usePlanner } from '@/lib/store';
 import { useStore } from '@/lib/store';
-import { todayLocal, formatDateIt, normalizeTime } from '@/lib/date';
+import { useToday, todayLocal, formatDateIt, normalizeTime } from '@/lib/date';
+
 import { SyncStatus } from '@/components/SyncStatus';
 
 const SLOTS = Array.from({ length: 16 }, (_, i) => `${String(i + 7).padStart(2, '0')}:00`);
@@ -16,12 +17,15 @@ const SLOTS = Array.from({ length: 16 }, (_, i) => `${String(i + 7).padStart(2, 
 export default function PlannerPage() {
   const { items, saveItem, deleteItem } = usePlanner();
   const { online } = useStore();
-  const [date, setDate] = useState(todayLocal());
+  const today = useToday();
+  const [dateOverride, setDateOverride] = useState<string | null>(null);
+  // Client-only: SSR è in UTC → il picker parte vuoto e si riempie all'idratazione
+  const date = dateOverride ?? today;
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<{ id: string } | null>(null);
   const [form, setForm] = useState({ title: '', startTime: '09:00', endTime: '10:00' });
 
-  const dayItems = items
+  const dayItems = date === null ? [] : items
     .filter((i) => i.date === date)
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
 
@@ -39,7 +43,7 @@ export default function PlannerPage() {
     await saveItem({
       id: editing?.id,
       title: form.title.trim(),
-      date,
+      date: date ?? todayLocal(),
       start_time: normalizeTime(form.startTime),
       end_time: normalizeTime(form.endTime),
     });
@@ -59,7 +63,7 @@ export default function PlannerPage() {
           <SyncStatus />
         </Box>
         <Box sx={{ display: 'flex', gap: 1.5, width: { xs: '100%', sm: 'auto' }, flexDirection: { xs: 'column', sm: 'row' } }}>
-          <TextField type="date" value={date} onChange={(e) => setDate(e.target.value)} size="small"
+          <TextField type="date" value={date ?? ''} onChange={(e) => setDateOverride(e.target.value || null)} size="small"
             slotProps={{ inputLabel: { shrink: true } }} sx={{ flex: { xs: 1, sm: 'auto' } }} />
           <Button variant="contained" startIcon={<Add />}
             onClick={() => { setEditing(null); setForm({ title: '', startTime: '09:00', endTime: '10:00' }); setOpen(true); }}

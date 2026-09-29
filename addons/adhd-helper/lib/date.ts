@@ -1,5 +1,30 @@
 /** Local-date helpers (no UTC conversion — fixes the old streak/timezone bugs). */
 
+import { useSyncExternalStore } from 'react';
+
+const MINUTE = 60_000;
+const subscribeNoop = () => () => {};
+
+/**
+ * Minute-bucket timestamp del client, null durante SSR/idratazione.
+ * Il server (Cloudflare Worker) è in UTC: usarlo per date/ore causava
+ * hydration mismatch (#418). Stabile nel minuto (niente loop getSnapshot).
+ */
+export function useClientMinute(): number | null {
+  const minute = useSyncExternalStore(subscribeNoop, () => Math.floor(Date.now() / MINUTE), () => -1);
+  return minute === -1 ? null : minute;
+}
+
+/**
+ * Today's local date, client-only. Returns null during SSR/first paint:
+ * the server runs in UTC, so a server-rendered "today" mismatched the
+ * client's between 00:00 and 02:00 in Italy (React error #418).
+ */
+export function useToday(): string | null {
+  const minute = useClientMinute();
+  return minute === null ? null : toLocalDateStr(new Date(minute * MINUTE));
+}
+
 export function todayLocal(): string {
   return toLocalDateStr(new Date());
 }

@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import {
   Box, Typography, Paper, Checkbox, LinearProgress, Chip, Button,
 } from '@mui/material';
@@ -10,7 +9,7 @@ import {
 } from '@mui/icons-material';
 import { useStore, useTasks, useHabits, usePlanner } from '@/lib/store';
 import { levelProgress } from '@/lib/types';
-import { todayLocal } from '@/lib/date';
+import { useClientMinute, useToday } from '@/lib/date';
 
 export default function OggiPage() {
   const { profile, session } = useStore();
@@ -18,16 +17,19 @@ export default function OggiPage() {
   const { habits, logs, toggleLog } = useHabits();
   const { items } = usePlanner();
 
-  const today = todayLocal();
-  const dueToday = tasks.filter((t) => !t.completed && (!t.due_date || t.due_date <= today));
-  const doneToday = tasks.filter((t) => t.completed && t.completed_at?.startsWith(today)).length;
-  const todaysBlocks = items
+  const today = useToday();
+  const dueToday = today === null ? [] : tasks.filter((t) => !t.completed && (!t.due_date || t.due_date <= today));
+  const doneToday = today === null ? 0 : tasks.filter((t) => t.completed && t.completed_at?.startsWith(today)).length;
+  const todaysBlocks = today === null ? [] : items
     .filter((i) => i.date === today)
     .sort((a, b) => a.start_time.localeCompare(b.start_time))
     .slice(0, 4);
   const progress = levelProgress(profile?.xp ?? 0);
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Buongiorno' : hour < 18 ? 'Buon pomeriggio' : 'Buonasera';
+  // Client-only: the greeting depends on the local hour (SSR would render it in UTC → hydration mismatch #418)
+  const minute = useClientMinute();
+  const hour = minute === null ? null : new Date(minute * 60_000).getHours();
+  const greeting =
+    hour === null ? '' : hour < 12 ? 'Buongiorno' : hour < 18 ? 'Buon pomeriggio' : 'Buonasera';
   const name = profile?.display_name?.split(' ')[0] || '';
 
   return (
@@ -112,7 +114,7 @@ export default function OggiPage() {
               <Chip
                 key={h.id}
                 label={h.name}
-                onClick={() => toggleLog(h.id, today)}
+                onClick={() => today && toggleLog(h.id, today)}
                 color={done ? 'success' : 'default'}
                 variant={done ? 'filled' : 'outlined'}
                 sx={{ cursor: 'pointer' }}
